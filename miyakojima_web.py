@@ -8,11 +8,33 @@ import pytz
 import requests
 import folium
 from streamlit_folium import st_folium
+import random # [NEW] 룰렛용
 
 # 1. 페이지 설정 및 디자인
 st.set_page_config(page_title="Miyako Blue 🐢", page_icon="🐢", layout="wide")
 
-st.markdown("""
+# [NEW] Stargazing Mode (다크 모드 토글) 로직
+if 'dark_mode' not in st.session_state:
+    st.session_state.dark_mode = False
+
+def toggle_theme():
+    st.session_state.dark_mode = not st.session_state.dark_mode
+
+# 다크 모드 CSS 적용
+if st.session_state.dark_mode:
+    page_bg = """
+    <style>
+    .stApp { background-color: #0e1117; color: #e0e0e0; }
+    .wave-header { background: linear-gradient(90deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: #b0bec5; box-shadow: none; }
+    .card { background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333; }
+    .stMarkdown, .stText, h1, h2, h3, h4, p, li { color: #e0e0e0 !important; }
+    a { color: #4fc3f7 !important; }
+    .weather-row { border-bottom: 1px solid #333; }
+    .streamlit-expanderHeader { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+    </style>
+    """
+else:
+    page_bg = """
     <style>
     .stApp { background: linear-gradient(180deg, #e0f2f1 0%, #f8fbff 30%, #ffffff 100%); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; }
     .wave-header { background: linear-gradient(90deg, #0077b6 0%, #00b4d8 50%, #90e0ef 100%); padding: 15px; border-radius: 12px; color: white; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,180,216,0.1); }
@@ -28,7 +50,8 @@ st.markdown("""
     a { color: #0077b6; text-decoration: none; font-weight: 600; }
     .streamlit-expanderHeader { font-weight: 700; color: #333; background-color: white; border-radius: 10px; }
     </style>
-    """, unsafe_allow_html=True)
+    """
+st.markdown(page_bg, unsafe_allow_html=True)
 
 # 2. API 함수들
 @st.cache_data(ttl=3600)
@@ -61,24 +84,36 @@ d_day = (datetime(2026, 2, 16).date() - datetime.now(pytz.timezone('Asia/Seoul')
 weather_3days = get_miyako_weather_3days()
 current_rate = get_exchange_rate()
 
-# [NEW] Session State for Wallet (지출 관리용)
-if 'expenses' not in st.session_state:
-    st.session_state.expenses = []
-if 'total_budget' not in st.session_state:
-    st.session_state.total_budget = 150000 # 기본 예산 (엔)
+# Session State (지출, 일기)
+if 'expenses' not in st.session_state: st.session_state.expenses = []
+if 'total_budget' not in st.session_state: st.session_state.total_budget = 150000
+if 'diary' not in st.session_state: st.session_state.diary = [] # [NEW] 일기 저장소
 
 # 3. 사이드바
 with st.sidebar:
     st.header("🛫 Trip Dashboard")
     
-    # 3일 날씨
-    st.subheader("☀️ Miyako Weather (3 Days)")
+    # [NEW] Stargazing Mode Toggle
+    st.toggle("🌌 Stargazing Mode", value=st.session_state.dark_mode, on_change=toggle_theme)
+    if st.session_state.dark_mode:
+        st.caption("별 관측을 위해 화면을 어둡게 합니다.")
+
+    st.subheader("☀️ Miyako Weather")
     if weather_3days:
-        st.markdown("""<div style="background:white; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="background:{'#333' if st.session_state.dark_mode else 'white'}; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">""", unsafe_allow_html=True)
         for w in weather_3days:
-            st.markdown(f"""<div class="weather-row"><span style="font-size:14px; font-weight:600;">{w['day']}</span><span style="font-size:18px;">{w['icon']}</span><span style="font-size:13px; color:#777;"><span style="color:#ff5252;">{w['max']}°</span> / <span style="color:#448aff;">{w['min']}°</span></span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="weather-row"><span style="font-size:14px; font-weight:600;">{w['day']}</span><span style="font-size:18px;">{w['icon']}</span><span style="font-size:13px; color:{'#ccc' if st.session_state.dark_mode else '#777'};"><span style="color:#ff5252;">{w['max']}°</span> / <span style="color:#448aff;">{w['min']}°</span></span></div>""", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
+    st.markdown("---")
+    
+    # [NEW] Menu Roulette
+    st.subheader("🎲 Menu Roulette")
+    if st.button("오늘 뭐 먹지? (Pick!)"):
+        restaurants = ["블루 터틀", "K's Pit Diner", "코자 소바", "유토피아 팜", "카메 스시", "야키니쿠 나카오", "해리스 쉬림프", "이자카야 훌라", "블루씰 아이스크림"]
+        pick = random.choice(restaurants)
+        st.success(f"🎉 당첨! **{pick}** 가자!")
+
     st.markdown("---")
     
     # 환율
@@ -86,27 +121,15 @@ with st.sidebar:
     st.caption(f"Rate: 100¥ = {current_rate:.1f}₩")
     jpy_input = st.number_input("JPY", value=1000, step=100)
     st.success(f"🇰🇷 {int(jpy_input * (current_rate / 100)):,} 원")
-    
     st.markdown("---")
-    
-    # D-Day
     if d_day > 0: st.metric("D-Day", f"D-{d_day}", "설렘 주의!")
     else: st.metric("D-Day", f"D+{abs(d_day)}", "여행 중")
-    
     st.markdown("---")
     
-    # BGM (유튜브 퍼가기)
+    # BGM
     st.subheader("🎵 BGM")
     st.markdown("""<iframe width="100%" height="200" src="https://www.youtube.com/embed/videoseries?list=PLkH-FRvpGUQTJv2K_bB8AyH1irPasrkiQ" title="Chris Playlist" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>""", unsafe_allow_html=True)
     st.caption("Chris's Pick 🎧")
-
-    st.markdown("---")
-    
-    # [NEW] QR Code Share
-    st.subheader("📱 Mobile Share")
-    # 구글 차트 API로 QR코드 생성 (URL은 예시, 실제 배포 URL로 변경 가능)
-    qr_url = "https://chart.googleapis.com/chart?cht=qr&chl=https://share.streamlit.io&chs=200x200&chld=L|0"
-    st.image(qr_url, caption="Scan to Connect", width=150)
 
 # 4. 헤더
 st.markdown(f"""<div class="wave-header"><h2>Miyako Blue 🐢</h2><p>The Ultimate Super App for Chris.</p></div>""", unsafe_allow_html=True)
@@ -148,13 +171,28 @@ locations = {
 }
 def get_map_url(place): return f"https://www.google.com/maps/search/{urllib.parse.quote(f'미야코지마 {place}')}"
 
-# 6. 탭 구성 (NEW: Smart Wallet 추가)
+# 6. 탭 구성
 tab0, tab_map, tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏛️ Overview", "🗺️ Map", "📅 Itinerary", "💎 Secret Spots", "🚲 Experiences", "🎒 Travel Kit", "💰 Wallet"])
 
 with tab0:
     st.markdown("### Trip Overview")
     df_themes = pd.DataFrame([["1일차", "2/16", "미야코 블루", "17END & 럭셔리 디너"], ["2일차", "2/17", "절경 드라이브", "등대 뷰 & 시장 투어"], ["3일차", "2/18", "바다와 미식", "거북이 & 야키니쿠"], ["4일차", "2/19", "섬 일주", "이케마섬 & 이자카야"], ["5일차", "2/20", "귀국", "공항 이동"]], columns=["일차", "날짜", "테마", "포인트"])
     st.table(df_themes.set_index("일차"))
+    
+    # [NEW] One-Line Diary
+    st.markdown("#### 📝 One-Line Diary (Today's Vibe)")
+    with st.form("diary_form"):
+        note = st.text_input("오늘 가장 좋았던 순간은?")
+        submit_note = st.form_submit_button("기록하기 (Save)")
+        if submit_note and note:
+            timestamp = datetime.now(pytz.timezone('Asia/Seoul')).strftime("%m/%d %H:%M")
+            st.session_state.diary.append(f"[{timestamp}] {note}")
+            st.success("기록되었습니다! 💾")
+            st.rerun()
+    
+    if st.session_state.diary:
+        st.info("\n\n".join(st.session_state.diary))
+
     c1, c2 = st.columns(2)
     df_cost = pd.DataFrame({"항목": ["식비", "교통", "투어/입장", "쇼핑/기타"], "비용": [66000, 23000, 24500, 22000]})
     with c1: st.dataframe(df_cost, use_container_width=True)
@@ -167,7 +205,7 @@ with tab_map:
         folium.Marker(coords, popup=name, tooltip=name, icon=folium.Icon(color="blue" if "힐튼" not in name else "red", icon="info-sign")).add_to(m)
     st_folium(m, width=700, height=500)
 
-with tab1: 
+with tab1: # 모바일 스크롤 최적화
     day_sel = st.selectbox("Select Your Day", df_itinerary['날짜'].unique())
     col_l, col_r = st.columns([1, 1.2])
     with col_l:
@@ -223,46 +261,32 @@ with tab4:
         st.markdown("---")
         st.markdown("""<div class="sos-card"><b>👮 경찰:</b> 110 / <b>🚑 구급:</b> 119<br><b>📞 영사관:</b> +81-92-771-0461</div>""", unsafe_allow_html=True)
 
-# [NEW] Smart Wallet Tab
 with tab5:
     st.markdown("### 💰 Smart Wallet (Budget Tracker)")
-    
     col_budget, col_add = st.columns([1, 1.5])
-    
     with col_budget:
         st.markdown("#### 📊 Budget Status")
         total_spent = sum([x['amount'] for x in st.session_state.expenses])
         remaining = st.session_state.total_budget - total_spent
         progress = min(1.0, total_spent / st.session_state.total_budget)
-        
         st.metric("Total Budget", f"¥ {st.session_state.total_budget:,}")
         st.metric("Total Spent", f"¥ {total_spent:,}", delta=f"- {total_spent:,}")
         st.metric("Remaining", f"¥ {remaining:,}", delta=f"{remaining:,}", delta_color="normal")
         st.progress(progress)
-        
-        if remaining < 0:
-            st.error("⚠️ 예산 초과! (Over Budget)")
-        elif remaining < 20000:
-            st.warning("⚠️ 예산 부족! (Low Budget)")
-            
     with col_add:
         st.markdown("#### 📝 Add Expense")
         with st.form("expense_form"):
             item = st.text_input("내역 (예: 점심, 기념품)")
             amount = st.number_input("금액 (엔)", min_value=0, step=100)
             submit = st.form_submit_button("추가 (Add)")
-            
             if submit and item and amount > 0:
                 st.session_state.expenses.append({"item": item, "amount": amount})
                 st.success(f"✅ {item} (¥{amount:,}) 추가됨!")
                 st.rerun()
-    
     st.markdown("---")
     st.markdown("#### 🧾 History")
-    if st.session_state.expenses:
-        st.dataframe(pd.DataFrame(st.session_state.expenses), use_container_width=True)
-    else:
-        st.info("아직 지출 내역이 없습니다.")
+    if st.session_state.expenses: st.dataframe(pd.DataFrame(st.session_state.expenses), use_container_width=True)
+    else: st.info("아직 지출 내역이 없습니다.")
 
 st.markdown("---")
 st.caption("Designed with 🐢 for Chris.")
