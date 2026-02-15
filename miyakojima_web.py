@@ -47,7 +47,6 @@ if 'initialized' not in st.session_state:
     st.session_state.total_budget = saved_data["total_budget"]
     st.session_state.diary = saved_data["diary"]
     st.session_state.dark_mode = saved_data["dark_mode"]
-    # [FIX] 날짜 선택 버그 수정을 위해 초기값 명시
     if 'selected_day' not in st.session_state:
         st.session_state.selected_day = "2/16 (월)"
     st.session_state.initialized = True
@@ -131,7 +130,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🎲 Menu Roulette")
     if st.button("오늘 뭐 먹지? (Pick!)"):
-        pick = random.choice(["블루 터틀", "K's Pit Diner", "코자 소바", "유토피아 팜", "카메 스시", "야키니쿠 나카오", "해리스 쉬림프", "이자카야 훌라", "블루씰 아이스크림"])
+        pick = random.choice(["블루 터틀", "K's Pit Diner", "코자 소바", "유토피아 팜", "카메 스시", "야키니쿠 나카오", "해리스 쉬림프", "이자카야 훌라", "블루씰 아이스크림", "다그즈 버거"])
         st.success(f"🎉 당첨! **{pick}** 가자!")
     
     st.markdown("---")
@@ -151,8 +150,9 @@ with st.sidebar:
 # 4. 헤더
 st.markdown(f"""<div class="wave-header"><h2>Miyako Blue 🐢</h2><p>The Ultimate Super App for Chris.</p></div>""", unsafe_allow_html=True)
 
-# 5. 데이터 (맵코드 포함)
+# 5. 데이터 (맵코드 대폭 추가 완료)
 mapcode_dict = {
+    # 기존 일정 장소
     "시모지시마 공항": "721 212 255*62", "블루 터틀": "721 214 624*34", "17END": "721 211 534*83",
     "힐튼 미야코지마": "310 451 316*52", "산에이 시티": "310 482 173*33", "K's Pit Diner": "310 481 054*41",
     "요나하 마에하마 비치": "310 211 487*43", "코자 소바": "310 453 583*58", "히가시 헨나자키": "310 231 661*74",
@@ -160,7 +160,16 @@ mapcode_dict = {
     "야키니쿠 나카오": "310 483 145*55", "무스누 해변": "310 152 478*22", "해리스 쉬림프": "721 000 000*00",
     "이케마 대교": "721 000 000*00", "이라부 대교": "310 481 211*17", "이온타운 미나미": "310 394 485*17",
     "이자카야 훌라": "310 453 789*12", "스나야마 비치": "310 573 234*25", "나가마하마 비치": "310 151 518*55",
-    "토구치노하마": "721 214 742*71"
+    "토구치노하마": "721 214 742*71",
+    # [NEW] 추천 맛집 10선
+    "다그즈 버거": "310 453 752*33", "리히터 (스테이크)": "310 482 443*22", "코샤마 (이자카야)": "310 453 332*11",
+    "더 고조 (퓨전)": "310 453 665*88", "그랑 블루 가맹": "310 451 112*44", "파이나가마 블루 부스": "310 483 221*55",
+    "DOUG'S COFFEE": "310 453 752*35", "스낵 R": "310 453 999*00", "소라니와 (카페)": "721 213 123*45",
+    "공항 17END 키친": "721 212 255*65",
+    # [NEW] 필수 명소 10선
+    "임갸 마린 가든": "310 183 678*85", "나카노시마 비치": "721 241 123*45", "마키나 전망대": "310 481 777*22",
+    "토리이케 (용의 눈)": "721 210 555*11", "사와다 해변": "721 272 123*44", "후나쿠사기": "721 000 111*22",
+    "야비지 (항구)": "721 000 222*33", "쿠리마 대교": "310 181 333*44", "식물원": "310 000 555*66", "마모루군 (경찰)": "섬 곳곳"
 }
 
 itinerary_data = [
@@ -251,17 +260,7 @@ with tab_map:
 
 with tab1:
     days = df_itinerary['날짜'].unique()
-    
-    # [BUG FIX] Pills 버튼의 버그 해결 (key 바인딩 사용)
-    # st.pills가 session_state의 'selected_day' 키를 직접 제어하게 합니다.
-    # 이렇게 하면 수동으로 할당하는 코드가 없어도 되며, 깜빡임 문제가 해결됩니다.
-    st.pills(
-        "Select Day", 
-        days, 
-        selection_mode="single", 
-        key="selected_day",  # 핵심: 키 바인딩!
-        label_visibility="collapsed"
-    )
+    st.pills("Select Day", days, selection_mode="single", key="selected_day", label_visibility="collapsed")
 
     st.markdown(f"##### {st.session_state.selected_day} Schedule")
     for _, r in df_itinerary[df_itinerary['날짜'] == st.session_state.selected_day].iterrows():
@@ -280,8 +279,39 @@ with tab1:
 with tab2: 
     st.markdown("### The Hidden Gems")
     cl1, cl2 = st.columns(2)
+    # 기존 콘텐츠 유지
     with cl1: st.markdown(f"""<div class="card"><h4>🏖️ Hidden Beaches</h4><ul><li><a href="{get_map_url('스나야마 비치')}" target="_blank">스나야마 비치</a>: 바위 아치 석양</li><li><a href="{get_map_url('나가마하마 비치')}" target="_blank">나가마하마 비치</a>: 프라이빗 비밀 해변</li><li><a href="{get_map_url('토구치노하마')}" target="_blank">토구치노하마</a>: 파우더 샌드</li></ul><br><h4>🛍️ Boutique Shopping</h4><ul><li><a href="{get_map_url('디자트')}" target="_blank">디자트</a>: 세련된 소품샵</li><li><a href="{get_map_url('나모시아')}" target="_blank">나모시아</a>: 핸드메이드 액세서리</li></ul></div>""", unsafe_allow_html=True)
     with cl2: st.markdown(f"""<div class="card"><h4>🍱 Local's Choice</h4><ul><li><a href="{get_map_url('마루요시 소바')}" target="_blank">마루요시 소바</a>: 전설의 소바</li><li><a href="{get_map_url('모쟈노 빵집')}" target="_blank">모쟈노 빵집</a>: 오픈런 베이커리</li><li><a href="{get_map_url('보쿠노 키친')}" target="_blank">보쿠노 키친</a>: 이탈리안 퓨전</li></ul><br><h4>📸 Photo Op</h4><ul><li><a href="{get_map_url('이케마 대교 전망대')}" target="_blank">이케마 대교 전망대</a>: 숨겨진 뷰포인트</li></ul></div>""", unsafe_allow_html=True)
+    
+    # [UPDATE] 추가된 추천 장소 (Expander로 정리)
+    st.markdown("---")
+    with st.expander("🍽️ Gourmet Top 10 (구글 4.0+ 맛집 추가 추천)", expanded=False):
+        st.markdown(f"""
+        1. **[다그즈 버거 (Doug's Burger)]({get_map_url('Doug\'s Burger')})**: (★4.2) 참치 스테이크 버거가 유명한 미야코지마 대표 수제버거.
+        2. **[리히터 (Richter)]({get_map_url('Richter Steak')})**: (★4.5) 미야코규 스테이크를 합리적인 가격에 즐길 수 있는 곳.
+        3. **[코샤마 (Koshama)]({get_map_url('Koshama')})**: (★4.3) 라이브 연주를 들으며 즐기는 분위기 깡패 이자카야.
+        4. **[더 고조 (The Gozso)]({get_map_url('The Gozso')})**: (★4.1) 오키나와 식재료를 활용한 창작 퓨전 요리 전문점.
+        5. **[그랑 블루 가맹 (Grand Bleu Gamin)]({get_map_url('Grand Bleu Gamin')})**: (★4.6) 특별한 날 가기 좋은 프라이빗 럭셔리 디너.
+        6. **[파이나가마 블루 부스]({get_map_url('Painagama Blue Booth')})**: (★4.4) 항구 뷰를 보며 먹는 핫도그와 카페 메뉴.
+        7. **[DOUG'S COFFEE]({get_map_url('Doug\'s Coffee')})**: (★4.3) 다그즈 버거 옆, 커피가 정말 맛있는 로스터리 카페.
+        8. **[스낵 R (Snack R)]({get_map_url('Snack R')})**: (★4.0) 현지인들과 어울려 술 한잔하기 좋은 로컬 스낵바.
+        9. **[소라니와 (Soraniwa)]({get_map_url('Soraniwa')})**: (★4.2) 이라부섬의 탁 트인 오션뷰를 자랑하는 카페 & 레스토랑.
+        10. **[17END Kitchen]({get_map_url('Shimojishima Airport 17END Kitchen')})**: (★4.1) 시모지시마 공항 내 위치, 활주로 뷰 맛집.
+        """)
+        
+    with st.expander("🌟 Must-Visit Top 10 (현지인 추천 명소)", expanded=False):
+        st.markdown(f"""
+        1. **[임갸 마린 가든]({get_map_url('Imgya Marine Garden')})**: 천연 풀장으로 불리는 스노클링 초보자들의 성지.
+        2. **[나카노시마 비치]({get_map_url('Nakanoshima Beach')})**: 시모지시마의 스노클링 명소. 물고기 떼가 장관.
+        3. **[마키나 전망대]({get_map_url('Makina Observatory')})**: 이라부 대교 전체를 조망할 수 있는 숨겨진 뷰포인트.
+        4. **[토리이케 (용의 눈)]({get_map_url('Toriike')})**: 두 개의 연못이 지하로 바다와 연결된 신비로운 다이빙 포인트.
+        5. **[사와다 해변]({get_map_url('Sawada no Hama')})**: 거대한 바위들이 바다에 흩뿌려진 독특한 풍광 (석양 명소).
+        6. **[후나쿠사기]({get_map_url('Funakusagi')})**: 절벽 아래 숨겨진 비경, 아는 사람만 가는 시크릿 스팟.
+        7. **[야비지 (Yabiji)]({get_map_url('Yabiji')})**: 일본 최대의 산호초 군락. 배를 타고 나가야만 볼 수 있는 절경.
+        8. **[쿠리마 대교]({get_map_url('Kurima Bridge')})**: 미야코지마 바다 색깔이 가장 예쁘게 보인다는 다리.
+        9. **[미야코지마 시 열대식물원]({get_map_url('Miyakojima City Botanical Garden')})**: 1,600종 이상의 식물이 있는 힐링 산책 코스.
+        10. **[미야코지마 마모루군]({get_map_url('Miyakojima Mamoru-kun')})**: 섬 곳곳에 서 있는 경찰 인형. 전원과 인증샷 찍기 도전!
+        """)
 
 with tab3: 
     st.markdown("### Island Experiences")
@@ -334,6 +364,7 @@ with tab5:
         total_spent = sum([x['amount'] for x in st.session_state.expenses])
         remaining = st.session_state.total_budget - total_spent
         progress = min(1.0, total_spent / st.session_state.total_budget) if st.session_state.total_budget > 0 else 0
+        
         st.metric("Total Budget", f"¥ {st.session_state.total_budget:,}")
         st.metric("Spent", f"¥ {total_spent:,}", delta=f"- {total_spent:,}", delta_color="inverse")
         st.metric("Remaining", f"¥ {remaining:,}", delta=f"{remaining:,}")
